@@ -1,0 +1,18 @@
+[package]
+name = "transpare-macros"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = []
+_debug = ["syn/extra-traits"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+heck = "0.4.1"
+proc-macro2 = "1.0.76"
+quote = "1.0.35"
+syn = "2.0.48"
+tap = "1.0.1"

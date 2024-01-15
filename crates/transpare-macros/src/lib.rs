@@ -79,10 +79,7 @@ pub fn derive_transpare(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     let DeriveInput {
         vis,
         ident: struct_name,
-        generics: Generics {
-            params: generic_params,
-            ..
-        },
+        generics: Generics { params: generic_params, .. },
         data,
         ..
     } = parse_macro_input!(input as DeriveInput);
@@ -185,11 +182,49 @@ pub fn derive_transpare(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                                 }
                             }
                         };
+                        let map_some = {
+                            let method_name = method_name("map_some");
+                            let target_parameters = replace_param_with(
+                                generic_params.clone(),
+                                generic_parameter,
+                                &target_parameter,
+                            );
+                            let fields =
+                                field_types(named.iter()).into_iter().map(|(field, ty)| {
+                                    match &ty == generic_parameter {
+                                        false => quote! {
+                                            #field: self.#field
+                                        },
+                                        true => quote! {
+                                            #field: #method_name(self.#field)?
+                                        },
+                                    }
+                                });
+                            quote! {
+                                #vis fn #method_name<
+                                    #target_parameter,
+                                    F: FnMut(#generic_parameter) -> std::option::Option<
+                                        #target_parameter,
+                                    >,
+                               >(
+                                    self,
+                                    mut #method_name: F,
+                                ) -> std::option::Option<
+                                        #struct_name<
+                                            #target_parameters>,
+                                        > {
+                                    Some(#struct_name {
+                                        #(#fields,)*
+                                    })
+                                }
+                            }
+                        };
                         quote! {
                             #[automatically_derived]
                             impl <#generic_params> #struct_name<#generic_params> {
                                 #map
                                 #try_map
+                                #map_some
                             }
                         }
                     }
@@ -275,11 +310,47 @@ pub fn derive_transpare(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                                 }
                             }
                         };
+                        let map_some = {
+                            let method_name = method_name("map_some");
+                            let target_parameters = replace_param_with(
+                                generic_params.clone(),
+                                generic_parameter,
+                                &target_parameter,
+                            );
+                            let fields = field_types(unnamed.iter()).into_iter().map(
+                                |(field, ty)| match &ty == generic_parameter {
+                                    false => quote! {
+                                        self.#field
+                                    },
+                                    true => quote! {
+                                        #method_name(self.#field)?
+                                    },
+                                },
+                            );
+                            quote! {
+                                #vis fn #method_name<
+                                    #target_parameter,
+                                    F: FnMut(#generic_parameter) -> std::option::Option<
+                                        #target_parameter,
+                                    >,
+                               >(
+                                    self,
+                                    mut #method_name: F,
+                                ) -> std::option::Option<
+                                        #struct_name<#target_parameters>,
+                                    > {
+                                    Some(#struct_name (
+                                        #(#fields,)*
+                                    ))
+                                }
+                            }
+                        };
                         quote! {
                             #[automatically_derived]
                             impl <#generic_params> #struct_name<#generic_params> {
                                 #map
                                 #try_map
+                                #map_some
                             }
                         }
                     }
@@ -306,12 +377,8 @@ pub fn derive_transpare(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                             generic_parameter,
                             &target_parameter,
                         );
-                        let variants = variants.iter().map(
-                            |Variant {
-                                 ident: variant,
-                                 fields,
-                                 ..
-                             }| {
+                        let variants =
+                            variants.iter().map(|Variant { ident: variant, fields, .. }| {
                                 match fields {
                                     syn::Fields::Named(_) => {
                                         let fields_mapping = field_types(fields.iter())
@@ -372,8 +439,7 @@ pub fn derive_transpare(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                                         #struct_name::#variant => #struct_name::#variant
                                     },
                                 }
-                            },
-                        );
+                            });
 
                         quote! {
                             #vis fn #method_name<
@@ -399,12 +465,8 @@ pub fn derive_transpare(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                             generic_parameter,
                             &target_parameter,
                         );
-                        let variants = variants.iter().map(
-                            |Variant {
-                                 ident: variant,
-                                 fields,
-                                 ..
-                             }| {
+                        let variants =
+                            variants.iter().map(|Variant { ident: variant, fields, .. }| {
                                 match fields {
                                     syn::Fields::Named(_) => {
                                         let fields_try_mapping = field_types(fields.iter())
@@ -465,8 +527,7 @@ pub fn derive_transpare(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                                         #struct_name::#variant => #struct_name::#variant
                                     },
                                 }
-                            },
-                        );
+                            });
 
                         quote! {
                             #vis fn #method_name<
@@ -489,12 +550,102 @@ pub fn derive_transpare(input: proc_macro::TokenStream) -> proc_macro::TokenStre
                             }
                         }
                     };
+                    let map_some = {
+                        let method_name = method_name("map_some");
+                        let target_parameters = replace_param_with(
+                            generic_params.clone(),
+                            generic_parameter,
+                            &target_parameter,
+                        );
+                        let variants =
+                            variants.iter().map(|Variant { ident: variant, fields, .. }| {
+                                match fields {
+                                    syn::Fields::Named(_) => {
+                                        let fields_map_someping = field_types(fields.iter())
+                                            .into_iter()
+                                            .map(|(field, ty)| match &ty == generic_parameter {
+                                                false => quote! {
+                                                    #field
+                                                },
+                                                true => quote! {
+                                                    #field: #method_name(#field)?
+                                                },
+                                            })
+                                            .collect::<Vec<_>>();
+                                        let field_names = field_types(fields.iter())
+                                            .into_iter()
+                                            .map(|(field_name, _)| field_name)
+                                            .collect::<Vec<_>>();
+                                        quote! {
+                                            #struct_name::#variant {
+                                                #(#field_names,)*
+                                            } => #struct_name::#variant {
+                                                #(#fields_map_someping,)*
+                                            }
+                                        }
+                                    }
+                                    syn::Fields::Unnamed(_) => {
+                                        let field_names = field_types(fields.iter())
+                                            .iter()
+                                            .enumerate()
+                                            .map(|(idx, (_, ident))| {
+                                                format!("__field_{idx}")
+                                                    .pipe_ref(|f| Ident::new(f, ident.span()))
+                                            })
+                                            .collect::<Vec<_>>();
+                                        let fields_map_some = field_types(fields.iter())
+                                            .into_iter()
+                                            .zip(field_names.iter())
+                                            .map(|((_, ty), field)| {
+                                                match &ty == generic_parameter {
+                                                    false => quote! {
+                                                        #field
+                                                    },
+                                                    true => quote! {
+                                                        #method_name(#field)?
+                                                    },
+                                                }
+                                            })
+                                            .collect::<Vec<_>>();
+                                        quote! {
+                                            #struct_name::#variant (
+                                                #(#field_names,)*
+                                            ) => #struct_name::#variant (
+                                                #(#fields_map_some,)*
+                                            )
+                                        }
+                                    }
+                                    syn::Fields::Unit => quote! {
+                                        #struct_name::#variant => #struct_name::#variant
+                                    },
+                                }
+                            });
+
+                        quote! {
+                            #vis fn #method_name<
+                                #target_parameter,
+                                F: FnMut(#generic_parameter) -> std::option::Option<
+                                    #target_parameter,
+                                >,
+                           >(
+                                self,
+                                mut #method_name: F,
+                            ) -> std::option::Option<
+                                    #struct_name<#target_parameters>,
+                                > {
+                                Some(match self {
+                                    #(#variants,)*
+                                })
+                            }
+                        }
+                    };
 
                     quote! {
                         #[automatically_derived]
                         impl <#generic_params> #struct_name<#generic_params> {
                             #map
                             #try_map
+                            #map_some
                         }
                     }
                 }

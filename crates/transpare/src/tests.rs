@@ -10,31 +10,28 @@ mod named_fields {
     #[test]
     fn test_map() {
         assert_eq!(
-            Something {
-                something: "asd",
-                something_else: ""
-            }
-            .map_value_one(|value| value.len())
-            .map_value_two(|_| ()),
-            Something {
-                something: 3,
-                something_else: ()
-            }
+            Something { something: "asd", something_else: "" }
+                .map_value_one(|value| value.len())
+                .map_value_two(|_| ()),
+            Something { something: 3, something_else: () }
+        );
+    }
+    #[test]
+    fn test_map_some() {
+        assert_eq!(
+            Something { something: "asd", something_else: "" }
+                .map_some_value_one(|value| Some(value.len()))
+                .and_then(|v| { v.map_some_value_two(|_| Some(())) }),
+            Some(Something { something: 3, something_else: () })
         );
     }
     #[test]
     fn test_try_map() {
         assert_eq!(
-            Something {
-                something: "asd",
-                something_else: ""
-            }
-            .try_map_value_one(|value| Result::<_, ()>::Ok(value.len()))
-            .and_then(|something| { something.try_map_value_two(|_| Ok(())) }),
-            Ok(Something {
-                something: 3,
-                something_else: ()
-            })
+            Something { something: "asd", something_else: "" }
+                .try_map_value_one(|value| Result::<_, ()>::Ok(value.len()))
+                .and_then(|something| { something.try_map_value_two(|_| Ok(())) }),
+            Ok(Something { something: 3, something_else: () })
         );
     }
 }
@@ -47,10 +44,15 @@ mod unnamed_fields {
     #[test]
     fn test_map() {
         assert_eq!(
-            Something("asd", "")
-                .map_value_one(|value| value.len())
-                .map_value_two(|_| ()),
+            Something("asd", "").map_value_one(|value| value.len()).map_value_two(|_| ()),
             Something(3, ())
+        );
+    }
+    #[test]
+    fn test_map_some() {
+        assert_eq!(
+            Something("asd", ()).map_some_value_one(|value| Some(value.len())),
+            Some(Something(3, ()))
         );
     }
     #[test]
@@ -79,6 +81,13 @@ mod named_enum {
         );
     }
     #[test]
+    fn test_map_some() {
+        assert_eq!(
+            Something::One { something: "asd" }.map_some_value_one(|value| Some(value.len())),
+            Some(Something::One { something: 3 })
+        );
+    }
+    #[test]
     fn test_try_map() {
         assert_eq!(
             Something::One { something: "asd" }
@@ -97,9 +106,13 @@ mod unnamed_enum {
 
     #[test]
     fn test_map() {
+        assert_eq!(Something::One("asd").map_value_one(|value| value.len()), Something::One(3));
+    }
+    #[test]
+    fn test_map_some() {
         assert_eq!(
-            Something::One("asd").map_value_one(|value| value.len()),
-            Something::One(3)
+            Something::One("asd").map_some_value_one(|value| Some(value.len())),
+            Some(Something::One(3))
         );
     }
     #[test]
